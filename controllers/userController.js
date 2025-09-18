@@ -280,7 +280,6 @@ exports.getRegisteredUserById = async (req, res) => {
 };
 
 // Book a ride
-// Book a ride - Fix the emission part
 exports.bookRide = async (req, res) => {
   try {
     console.log('🔍 Booking request received:', req.body);
@@ -298,7 +297,6 @@ exports.bookRide = async (req, res) => {
       isReturnTrip
     } = req.body;
     
-    // Validate required fields
     if (!pickupLocation || !dropoffLocation || !pickupCoordinates || 
         !dropoffCoordinates || !fare || !rideType || !otp) {
       return res.status(400).json({
@@ -307,7 +305,6 @@ exports.bookRide = async (req, res) => {
       });
     }
     
-    // Generate RAID_ID
     const counter = await RaidId.findOneAndUpdate(
       { _id: 'raidId' },
       { $inc: { sequence: 1 } },
@@ -315,13 +312,21 @@ exports.bookRide = async (req, res) => {
     );
     const RAID_ID = counter.sequence.toString().padStart(6, '0');
     
-    // Fetch user details
     const user = await Registration.findById(req.user.id);
     if (!user || !user.customerId) {
       return res.status(404).json({ success: false, error: 'User or customerId not found' });
     }
     
-    // Create and save ride with customerId
+    // Log required details
+    console.log(`
+      🚕 NEW RIDE BOOKING: ${RAID_ID}
+      👤 Customer ID: ${user.customerId}
+      👤 Customer Name: ${user.name}
+      📍 Pickup Location: ${pickupLocation}
+      📍 Dropoff Location: ${dropoffLocation}
+      📏 Traveling Length: ${distance}
+    `);
+    
     const newRide = new Ride({
       user: req.user.id,
       customerId: user.customerId,
@@ -343,12 +348,11 @@ exports.bookRide = async (req, res) => {
     const savedRide = await newRide.save();
     console.log('✅ Ride booked successfully:', savedRide);
     
-    // ✅ FIXED: Get socket instance and emit to all drivers properly
     const io = req.app.get('io');
     if (io) {
       const rideData = {
-        rideId: savedRide._id.toString(), // Use MongoDB _id as rideId
-        RAID_ID: savedRide.RAID_ID, // Also include RAID_ID for reference
+        rideId: savedRide._id.toString(),
+        RAID_ID: savedRide.RAID_ID,
         customerId: savedRide.customerId,
         name: savedRide.name,
         pickup: {
@@ -364,13 +368,14 @@ exports.bookRide = async (req, res) => {
         fare: savedRide.fare,
         rideType: savedRide.rideType,
         distance: savedRide.distance,
+        otp: savedRide.otp, // Include OTP in the emitted data
+        success: true,
         timestamp: new Date()
       };
       
       console.log('📡 Emitting new ride request to all drivers:', rideData);
-      
-      // Emit to all drivers in the "allDrivers" room
       io.to("allDrivers").emit("newRideRequest", rideData);
+      io.emit("rideCreated", rideData); // Emit to the user
     } else {
       console.log('⚠️ Socket.io instance not available');
     }

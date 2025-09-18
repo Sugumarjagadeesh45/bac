@@ -50,10 +50,20 @@ exports.createRide = async (req, res) => {
     // Get io instance from app
     const io = req.app.get('io');
     if (io) {
+      // Emit rideRequest to notify drivers
       io.emit("rideRequest", {
         rideId: ride.RAID_ID,
         pickup: { address: ride.pickupLocation, lat: ride.pickupCoordinates.latitude, lng: ride.pickupCoordinates.longitude },
         drop: { address: ride.dropoffLocation, lat: ride.dropoffCoordinates.latitude, lng: ride.dropoffCoordinates.longitude }
+      });
+
+      // Emit rideCreated to notify the user who booked the ride
+      // Assuming the user ID is available in req.user._id from the auth middleware
+      io.to(req.user._id.toString()).emit("rideCreated", {
+        success: true,
+        rideId: ride._id.toString(),
+        otp: ride.otp || Math.floor(1000 + Math.random() * 9000).toString(), // Generate OTP if not provided
+        message: "Ride booked successfully!"
       });
     } else {
       console.error("❌ Socket.io instance not found");
@@ -125,7 +135,6 @@ exports.getRideById = async (req, res) => {
 };
 
 // --- Accept Ride ---
-// Add OTP generation when ride is accepted
 exports.acceptRide = async (req, res) => {
   try {
     const { rideId, driverId } = req.body;
@@ -165,6 +174,7 @@ exports.acceptRide = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 // --- Mark Arrived ---
 exports.markArrived = async (req, res) => {
   try {
@@ -258,6 +268,15 @@ exports.completeRide = async (req, res) => {
 
 
 
+
+
+
+
+
+
+
+
+// // D:\newapp\fullbackend-main\fullbackend-main_\controllers\rideController.js
 // const User = require('../models/user/Registration');
 // const Driver = require('../models/driver/driver');
 // const Ride = require('../models/ride');
@@ -297,8 +316,6 @@ exports.completeRide = async (req, res) => {
 // };
 
 // // --- CREATE Ride ---
-// const { io } = require("../server"); // import io
-
 // exports.createRide = async (req, res) => {
 //   try {
 //     console.log("📥 Incoming ride request body:", req.body);
@@ -308,12 +325,17 @@ exports.completeRide = async (req, res) => {
 
 //     console.log("✅ Ride saved:", ride);
 
-//     // 🔥 Emit rideRequest to drivers
-//     io.emit("rideRequest", {
-//       rideId: ride.RAID_ID,
-//       pickup: { address: ride.pickupLocation, lat: ride.pickupCoordinates.latitude, lng: ride.pickupCoordinates.longitude },
-//       drop: { address: ride.dropoffLocation, lat: ride.dropoffCoordinates.latitude, lng: ride.dropoffCoordinates.longitude }
-//     });
+//     // Get io instance from app
+//     const io = req.app.get('io');
+//     if (io) {
+//       io.emit("rideRequest", {
+//         rideId: ride.RAID_ID,
+//         pickup: { address: ride.pickupLocation, lat: ride.pickupCoordinates.latitude, lng: ride.pickupCoordinates.longitude },
+//         drop: { address: ride.dropoffLocation, lat: ride.dropoffCoordinates.latitude, lng: ride.dropoffCoordinates.longitude }
+//       });
+//     } else {
+//       console.error("❌ Socket.io instance not found");
+//     }
 
 //     res.status(201).json({ success: true, ride });
 //   } catch (err) {
@@ -323,7 +345,6 @@ exports.completeRide = async (req, res) => {
 // };
 
 // // --- UPDATE ride ---
-// // In rideController.js, update the updateRide function:
 // exports.updateRide = async (req, res) => {
 //   try {
 //     console.log(`Updating ride with RAID_ID: ${req.params.rideId}`);
@@ -341,6 +362,16 @@ exports.completeRide = async (req, res) => {
 //     }
     
 //     console.log("✅ Ride updated successfully:", ride);
+
+//     // Emit status update to frontend
+//     const io = req.app.get('io');
+//     if (io) {
+//       io.to(ride._id.toString()).emit("rideStatusUpdate", { 
+//         rideId: ride._id.toString(), 
+//         status: ride.status 
+//       });
+//     }
+
 //     res.json(ride);
 //   } catch (err) {
 //     console.error("❌ Error updating ride:", err);
@@ -372,23 +403,46 @@ exports.completeRide = async (req, res) => {
 // };
 
 // // --- Accept Ride ---
+// // Add OTP generation when ride is accepted
 // exports.acceptRide = async (req, res) => {
 //   try {
-//     const { driverId } = req.body;
-//     const ride = await Ride.findOne({ RAID_ID: req.params.rideId });
+//     const { rideId, driverId } = req.body;
+//     const ride = await Ride.findOne({ _id: rideId }); // Use _id instead of RAID_ID
 //     if (!ride) return res.status(404).json({ error: 'Ride not found' });
-//     if (ride.status !== 'requested') return res.status(400).json({ error: 'Ride already taken' });
+//     if (ride.status !== 'pending') return res.status(400).json({ error: 'Ride already taken' });
+    
+//     // Generate OTP
+//     const otp = Math.floor(1000 + Math.random() * 9000).toString();
     
 //     ride.driver = driverId;
 //     ride.status = 'accepted';
+//     ride.otp = otp; // Save OTP to ride
 //     await ride.save();
 
-//     res.json({ success: true, ride });
+//     // Get socket instance
+//     const io = req.app.get('io');
+//     if (io) {
+//       // Notify user that ride was accepted
+//       io.to(ride.user.toString()).emit("rideAccepted", {
+//         rideId: ride._id.toString(),
+//         driverId,
+//         driverName: req.body.driverName,
+//         otp: otp // Send OTP to user
+//       });
+
+//       // Also notify driver with OTP (for verification)
+//       io.to(`driver_${driverId}`).emit("rideOTP", {
+//         rideId: ride._id.toString(),
+//         otp: otp
+//       });
+//     }
+
+//     res.json({ success: true, ride, otp });
 //   } catch (err) {
+//     console.error("❌ Error accepting ride:", err);
 //     res.status(500).json({ error: err.message });
 //   }
 // };
-
 // // --- Mark Arrived ---
 // exports.markArrived = async (req, res) => {
 //   try {
@@ -398,6 +452,15 @@ exports.completeRide = async (req, res) => {
     
 //     ride.status = 'arrived';
 //     await ride.save();
+
+//     const io = req.app.get('io');
+//     if (io) {
+//       io.to(ride._id.toString()).emit("rideStatusUpdate", {
+//         rideId: ride._id.toString(),
+//         status: ride.status
+//       });
+//     }
+
 //     res.json({ success: true, ride });
 //   } catch (err) {
 //     res.status(500).json({ error: err.message });
@@ -415,14 +478,20 @@ exports.completeRide = async (req, res) => {
     
 //     ride.status = 'ongoing';
 //     await ride.save();
+
+//     const io = req.app.get('io');
+//     if (io) {
+//       io.to(ride._id.toString()).emit("rideStatusUpdate", {
+//         rideId: ride._id.toString(),
+//         status: ride.status
+//       });
+//     }
+
 //     res.json({ success: true, ride });
 //   } catch (err) {
 //     res.status(500).json({ error: err.message });
 //   }
 // };
-
-
-
 
 // // --- Complete Ride ---
 // exports.completeRide = async (req, res) => {
@@ -446,8 +515,19 @@ exports.completeRide = async (req, res) => {
 //       await driver.save();
 //     }
 
+//     const io = req.app.get('io');
+//     if (io) {
+//       io.to(ride._id.toString()).emit("rideStatusUpdate", {
+//         rideId: ride._id.toString(),
+//         status: ride.status
+//       });
+//     }
+
 //     res.json({ success: true, ride, newUserPoints: user.wallet.points });
 //   } catch (err) {
 //     res.status(500).json({ error: err.message });
 //   }
 // };
+
+
+
