@@ -1,3 +1,168 @@
+// // D:\newapp\fullbackend-main\fullbackend-main_\socket.js
+// const { Server } = require("socket.io");
+// const DriverLocation = require("./models/DriverLocation");
+
+// let io;
+// const activeDriverSockets = new Map();
+
+// // ================= Helper Functions =================
+// const logDriverStatus = () => {
+//   console.log("\n📊 === CURRENT DRIVER STATUS ===");
+//   if (activeDriverSockets.size === 0) {
+//     console.log("❌ No drivers currently online");
+//   } else {
+//     console.log(`✅ ${activeDriverSockets.size} drivers currently online:`);
+//     activeDriverSockets.forEach((driver, driverId) => {
+//       console.log(`  🚗 ${driver.driverName} (${driverId})`);
+//       console.log(`     Status: ${driver.status}`);
+//       console.log(
+//         `     Location: ${driver.location.latitude}, ${driver.location.longitude}`
+//       );
+//       console.log(`     Socket: ${driver.socketId}`);
+//       console.log(`     Online: ${driver.isOnline ? "Yes" : "No"}`);
+//     });
+//   }
+//   console.log("================================\n");
+// };
+
+// async function saveDriverLocationToDB(
+//   driverId,
+//   driverName,
+//   latitude,
+//   longitude,
+//   vehicleType,
+//   status = "Live"
+// ) {
+//   try {
+//     const locationDoc = new DriverLocation({
+//       driverId,
+//       driverName,
+//       latitude,
+//       longitude,
+//       vehicleType,
+//       status,
+//       timestamp: new Date(),
+//     });
+
+//     await locationDoc.save();
+//     console.log(`💾 Saved location for driver ${driverId} (${driverName})`);
+//   } catch (error) {
+//     console.error("❌ Error saving driver location:", error);
+//   }
+// }
+
+// // ====================================================
+// const init = (server) => {
+//   io = new Server(server, {
+//     cors: {
+//       origin: "*",
+//       methods: ["GET", "POST"],
+//     },
+//   });
+
+//   // Status check log every 30s
+//   setInterval(() => {
+//     console.log(`\n⏰ ${new Date().toLocaleString()} - Server Status Check`);
+//     logDriverStatus();
+//   }, 3000);
+
+//   io.on("connection", (socket) => {
+//     console.log(`⚡ Client connected: ${socket.id}`);
+
+//     // Debug all events
+//     socket.onAny((event, ...args) => {
+//       console.log("📥 Incoming Event:", event, args[0]);
+//     });
+
+//     // -------- Register Driver --------
+//     socket.on(
+//       "registerDriver",
+//       async ({ driverId, driverName, latitude, longitude, vehicleType = "taxi" }) => {
+//         console.log(
+//           "🚕 registerDriver RECEIVED:",
+//           driverId,
+//           driverName,
+//           latitude,
+//           longitude,
+//           vehicleType
+//         );
+
+//         if (!driverId || !driverName) {
+//           console.log("❌ registerDriver missing info");
+//           return;
+//         }
+
+//         activeDriverSockets.set(driverId.toLowerCase(), {
+//           socketId: socket.id,
+//           driverId: driverId.toLowerCase(),
+//           driverName,
+//           location: { latitude, longitude },
+//           vehicleType,
+//           lastUpdate: Date.now(),
+//           status: "Live",
+//           isOnline: true,
+//         });
+
+//         console.log(`✅ Driver registered: ${driverName} (${driverId})`);
+//         await saveDriverLocationToDB(
+//           driverId.toLowerCase(),
+//           driverName,
+//           latitude,
+//           longitude,
+//           vehicleType
+//         );
+
+//         logDriverStatus();
+//       }
+//     );
+
+//     // -------- Driver Location Update --------
+//     socket.on("driverLiveLocationUpdate", async ({ driverId, lat, lng }) => {
+//       const normalizedId = driverId.toLowerCase();
+//       if (activeDriverSockets.has(normalizedId)) {
+//         const driverData = activeDriverSockets.get(normalizedId);
+//         driverData.location = { latitude: lat, longitude: lng };
+//         driverData.lastUpdate = Date.now();
+//         activeDriverSockets.set(normalizedId, driverData);
+
+//         await saveDriverLocationToDB(
+//           normalizedId,
+//           driverData.driverName,
+//           lat,
+//           lng,
+//           driverData.vehicleType
+//         );
+//         console.log(`📍 Driver ${normalizedId} location updated: ${lat}, ${lng}`);
+//       }
+//     });
+
+//     // -------- Disconnect --------
+//     socket.on("disconnect", () => {
+//       console.log(`❌ Socket disconnected: ${socket.id}`);
+//       for (const [driverId, driver] of activeDriverSockets.entries()) {
+//         if (driver.socketId === socket.id) {
+//           driver.isOnline = false;
+//           driver.status = "Offline";
+//           activeDriverSockets.set(driverId, driver);
+//           console.log(`🛑 Driver ${driver.driverName} (${driverId}) went offline`);
+//           break;
+//         }
+//       }
+//       logDriverStatus();
+//     });
+//   });
+// };
+
+// const getIO = () => io;
+// module.exports = { init, getIO };
+
+
+
+
+
+
+
+
 // D:\newapp\fullbackend-main\fullbackend-main_\socket.js
 const { Server } = require("socket.io");
 const DriverLocation = require("./models/DriverLocation");

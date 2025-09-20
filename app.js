@@ -9,6 +9,10 @@ const app = express();
 app.use(cors({
   origin: "*",
   methods: ["GET", "POST", "PUT", "DELETE"],
+
+    path: "/socket.io/", // ✅ Idhu same-a irukkanum
+  transports: ['polling', 'websocket'] ,// ✅ Idhum add pannu
+
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
 
