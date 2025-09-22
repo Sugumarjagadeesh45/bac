@@ -5,7 +5,17 @@ const rideSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'Registration', required: true },
   customerId: { type: String, required: true },
   name: { type: String, required: true },
-  RAID_ID: { type: String, required: true, unique: true },
+  RAID_ID: { 
+    type: String, 
+    required: [true, 'RAID_ID is required'],
+    unique: true,
+    validate: {
+      validator: function(v) {
+        return v !== null && v !== undefined && v.trim() !== '';
+      },
+      message: 'RAID_ID cannot be null or empty'
+    }
+  },
   pickupLocation: { type: String, required: true },
   dropoffLocation: { type: String, required: true },
   pickupCoordinates: {
